@@ -102,7 +102,7 @@ $total_students = $result->fetch_assoc()['total'];
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white" href="manage_courses.php">
+                <a class="nav-link text-white" href="./manage_courses.php">
                     <i class="fas fa-book"></i> Manage Courses
                 </a>
             </li>
@@ -119,14 +119,17 @@ $total_students = $result->fetch_assoc()['total'];
         </ul>
     </div>
 
-    <!-- Main Content -->
     <div class="content">
-        <div class="container-fluid">
-            <h1 class="h3 mb-4">Admin Dashboard</h1>
+    <div class="container-fluid">
+        <h1 class="h3 mb-4">Admin Dashboard</h1>
 
-            <?php
-            // Process course creation form submission
-            if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['title'])) {
+        <?php
+        // Process course creation form submission
+        if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['title'])) {
+            // Start transaction
+            $conn->begin_transaction();
+            
+            try {
                 // Sanitize and validate inputs
                 $title = $conn->real_escape_string($_POST['title']);
                 $course_code = $conn->real_escape_string($_POST['course_code']);
@@ -134,31 +137,49 @@ $total_students = $result->fetch_assoc()['total'];
                 $credit_hours = (int)$_POST['credit_hours'];
                 $teacher_id = (int)$_POST['teacher_id'];
                 
-                // Insert course into database
-                $stmt = $conn->prepare("INSERT INTO courses (title, course_code, description, credit_hours, teacher_id) 
-                                        VALUES (?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssis", $title, $course_code, $description, $credit_hours, $teacher_id);
-                
-                if ($stmt->execute()) {
-                    echo '<div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <strong>Success!</strong> Course has been added successfully.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                          </div>';
-                } else {
-                    echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <strong>Error!</strong> Failed to add course: ' . $stmt->error . '
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                          </div>';
-                }
-                $stmt->close();
-                
-                // Refresh teachers list after adding course
-                $stmt = $conn->prepare("SELECT * FROM teachers ORDER BY full_name");
+                // Insert course
+                $stmt = $conn->prepare("
+                    INSERT INTO courses (title, course_code, description, credit_hours) 
+                    VALUES (?, ?, ?, ?)
+                ");
+                $stmt->bind_param("sssi", $title, $course_code, $description, $credit_hours);
                 $stmt->execute();
-                $teachers = $stmt->get_result();
+                $course_id = $conn->insert_id;
                 $stmt->close();
+                
+                // Assign teacher to course
+                $stmt = $conn->prepare("
+                    INSERT INTO teacher_courses (teacher_id, course_id) 
+                    VALUES (?, ?)
+                ");
+                $stmt->bind_param("ii", $teacher_id, $course_id);
+                $stmt->execute();
+                $stmt->close();
+                
+                // Commit transaction
+                $conn->commit();
+                
+                echo '<div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <strong>Success!</strong> Course has been added successfully.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                      </div>';
+                      
+            } catch (Exception $e) {
+                // Rollback on error
+                $conn->rollback();
+                echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <strong>Error!</strong> Failed to add course: ' . $e->getMessage() . '
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                      </div>';
             }
-            ?>
+            
+            // Refresh teachers list
+            $stmt = $conn->prepare("SELECT * FROM teachers ORDER BY full_name");
+            $stmt->execute();
+            $teachers = $stmt->get_result();
+            $stmt->close();
+        }
+        ?>
 
             <!-- Statistics Cards -->
             <div class="row">
@@ -258,6 +279,169 @@ $total_students = $result->fetch_assoc()['total'];
                     </form>
                 </div>
             </div>
+            <?php
+// Add this after the existing SQL queries at the top of the file
+
+// Get all courses for the dropdown
+$stmt = $conn->prepare("
+    SELECT c.id, c.title, c.course_code 
+    FROM courses c
+    ORDER BY c.title
+");
+$stmt->execute();
+$courses = $stmt->get_result();
+$stmt->close();
+
+// Process module creation form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['module_title'])) {
+    // Start transaction
+    $conn->begin_transaction();
+    
+    try {
+        // Sanitize and validate inputs
+        $module_title = $conn->real_escape_string($_POST['module_title']);
+        $module_description = $conn->real_escape_string($_POST['module_description']);
+        $course_id = (int)$_POST['course_id'];
+        $teacher_id = (int)$_POST['module_teacher_id'];
+        
+        // Debug the table structure to see correct column names
+        $table_info = $conn->query("DESCRIBE modules");
+        $columns = [];
+        while ($row = $table_info->fetch_assoc()) {
+            $columns[] = $row['Field'];
+        }
+        
+        // Insert module - using the exact column names from your table structure
+        $stmt = $conn->prepare("
+            INSERT INTO modules (course_id, title, description) 
+            VALUES (?, ?, ?)
+        ");
+        $stmt->bind_param("iss", $course_id, $module_title, $module_description);
+        $stmt->execute();
+        $module_id = $conn->insert_id;
+        $stmt->close();
+        
+        // Create a teacher_modules table if it doesn't exist
+        $conn->query("
+            CREATE TABLE IF NOT EXISTS teacher_modules (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                teacher_id INT,
+                module_id INT,
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
+                FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE,
+                UNIQUE KEY (teacher_id, module_id)
+            )
+        ");
+        
+        // Assign teacher to module
+        $stmt = $conn->prepare("
+            INSERT INTO teacher_modules (teacher_id, module_id) 
+            VALUES (?, ?)
+        ");
+        $stmt->bind_param("ii", $teacher_id, $module_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        // Commit transaction
+        $conn->commit();
+        
+        echo '<div class="alert alert-success alert-dismissible fade show" role="alert">
+                <strong>Success!</strong> Module has been added successfully.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>';
+              
+    } catch (Exception $e) {
+        // Rollback on error
+        $conn->rollback();
+        echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong>Error!</strong> Failed to add module: ' . $e->getMessage() . '
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>';
+    }
+    
+    // Refresh courses and teachers lists
+    $stmt = $conn->prepare("SELECT c.id, c.title, c.course_code FROM courses c ORDER BY c.title");
+    $stmt->execute();
+    $courses = $stmt->get_result();
+    $stmt->close();
+    
+    $stmt = $conn->prepare("SELECT * FROM teachers ORDER BY full_name");
+    $stmt->execute();
+    $teachers = $stmt->get_result();
+    $stmt->close();
+}
+
+// Add this HTML code after the "Create Course Card" section and before the closing </div> of the content div
+?>
+
+<!-- Add this HTML right before the closing </div> of the content div -->
+
+<!-- Create Module Card -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Add New Module</h6>
+    </div>
+    <div class="card-body">
+        <form action="dashboard.php" method="post">
+            <div class="mb-3">
+                <label for="course_id" class="form-label">Select Course</label>
+                <select class="form-select" id="course_id" name="course_id" required>
+                    <option value="">Select Course</option>
+                    <?php 
+                    // Reset the courses result pointer
+                    if ($courses) {
+                        $courses->data_seek(0);
+                        while ($course = $courses->fetch_assoc()): 
+                    ?>
+                        <option value="<?php echo $course['id']; ?>">
+                            <?php echo htmlspecialchars($course['title']); ?> 
+                            (<?php echo htmlspecialchars($course['course_code']); ?>)
+                        </option>
+                    <?php 
+                        endwhile;
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="module_title" class="form-label">Module Title</label>
+                <input type="text" class="form-control" id="module_title" name="module_title" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="module_description" class="form-label">Module Description</label>
+                <textarea class="form-control" id="module_description" name="module_description" rows="3"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="module_teacher_id" class="form-label">Assign Teacher</label>
+                <select class="form-select" id="module_teacher_id" name="module_teacher_id" required>
+                    <option value="">Select Teacher</option>
+                    <?php 
+                    // Reset the teachers result pointer
+                    if ($teachers) {
+                        $teachers->data_seek(0);
+                        while ($teacher = $teachers->fetch_assoc()): 
+                    ?>
+                        <option value="<?php echo $teacher['id']; ?>">
+                            <?php echo htmlspecialchars($teacher['full_name']); ?> 
+                            (<?php echo htmlspecialchars($teacher['email']); ?>)
+                        </option>
+                    <?php 
+                        endwhile;
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Add Module</button>
+        </form>
+    </div>
+</div>
+
+            
         </div>
     </div>
 
