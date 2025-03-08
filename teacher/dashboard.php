@@ -45,6 +45,80 @@ while ($row = $courses_result->fetch_assoc()) {
     $courses[] = $row;
 }
 $stmt->close();
+
+// AJAX handler for fetching modules, batches, and programs
+if (isset($_GET['action'])) {
+    header('Content-Type: application/json');
+    
+    if ($_GET['action'] === 'get_modules' && isset($_GET['course_id'])) {
+        $course_id = intval($_GET['course_id']);
+        $stmt = $conn->prepare("SELECT id, title FROM modules WHERE course_id = ?");
+        $stmt->bind_param("i", $course_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $modules = [];
+        while ($row = $result->fetch_assoc()) {
+            $modules[] = $row;
+        }
+        
+        echo json_encode($modules);
+        $stmt->close();
+        $conn->close();
+        exit();
+    }
+    
+    if ($_GET['action'] === 'get_batches' && isset($_GET['course_id'])) {
+        $course_id = intval($_GET['course_id']);
+        
+        // Get distinct batches from students enrolled in this course
+        $stmt = $conn->prepare("
+            SELECT DISTINCT s.batch AS id, s.batch AS name
+            FROM students s
+            JOIN enrollments e ON s.id = e.student_id
+            WHERE e.course_id = ?
+            ORDER BY s.batch
+        ");
+        $stmt->bind_param("i", $course_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $batches = [];
+        while ($row = $result->fetch_assoc()) {
+            $batches[] = $row;
+        }
+        
+        echo json_encode($batches);
+        $stmt->close();
+        $conn->close();
+        exit();
+    }
+    
+    if ($_GET['action'] === 'get_programs' && isset($_GET['batch_id'])) {
+        $batch_id = $_GET['batch_id']; // Note: This might be a string now, not an int
+        
+        // Get distinct programs from students in this batch
+        $stmt = $conn->prepare("
+            SELECT DISTINCT s.program AS id, s.program AS name
+            FROM students s
+            WHERE s.batch = ?
+            ORDER BY s.program
+        ");
+        $stmt->bind_param("s", $batch_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $programs = [];
+        while ($row = $result->fetch_assoc()) {
+            $programs[] = $row;
+        }
+        
+        echo json_encode($programs);
+        $stmt->close();
+        $conn->close();
+        exit();
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -321,6 +395,20 @@ $stmt->close();
                                         </div>
                                         
                                         <div class="mb-3">
+                                            <label for="batch" class="form-label">Select Batch</label>
+                                            <select class="form-select" id="batch" name="batch_id" required>
+                                                <option value="">-- First Select a Course --</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="program" class="form-label">Select Program</label>
+                                            <select class="form-select" id="program" name="program_id" required>
+                                                <option value="">-- First Select a Batch --</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="mb-3">
                                             <label for="title" class="form-label">Assignment Title</label>
                                             <input type="text" class="form-control" id="title" name="title" required>
                                         </div>
@@ -357,13 +445,16 @@ $stmt->close();
         document.getElementById('course').addEventListener('change', function() {
             const courseId = this.value;
             const moduleSelect = document.getElementById('module');
+            const batchSelect = document.getElementById('batch');
             
             // Clear existing options
             moduleSelect.innerHTML = '<option value="">-- Loading Modules --</option>';
+            batchSelect.innerHTML = '<option value="">-- First Select a Course --</option>';
+            document.getElementById('program').innerHTML = '<option value="">-- First Select a Batch --</option>';
             
             if (courseId !== '') {
                 // Fetch modules for the selected course using AJAX
-                fetch(`get_modules.php?course_id=${courseId}`)
+                fetch(`dashboard.php?action=get_modules&course_id=${courseId}`)
                     .then(response => response.json())
                     .then(data => {
                         moduleSelect.innerHTML = '';
@@ -384,8 +475,69 @@ $stmt->close();
                         console.error('Error fetching modules:', error);
                         moduleSelect.innerHTML = '<option value="">Error loading modules</option>';
                     });
+                
+                // Fetch batches for the selected course using AJAX
+                fetch(`dashboard.php?action=get_batches&course_id=${courseId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        batchSelect.innerHTML = '';
+                        
+                        if (data.length === 0) {
+                            batchSelect.innerHTML = '<option value="">No batches available</option>';
+                        } else {
+                            batchSelect.innerHTML = '<option value="">-- Select Batch --</option>';
+                            data.forEach(batch => {
+                                const option = document.createElement('option');
+                                option.value = batch.id;
+                                option.textContent = batch.name;
+                                batchSelect.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching batches:', error);
+                        batchSelect.innerHTML = '<option value="">Error loading batches</option>';
+                    });
             } else {
                 moduleSelect.innerHTML = '<option value="">-- First Select a Course --</option>';
+                batchSelect.innerHTML = '<option value="">-- First Select a Course --</option>';
+                document.getElementById('program').innerHTML = '<option value="">-- First Select a Batch --</option>';
+            }
+        });
+        
+        // Script to load programs based on batch selection
+        document.getElementById('batch').addEventListener('change', function() {
+            const batchId = this.value;
+            const programSelect = document.getElementById('program');
+            
+            // Clear existing options
+            programSelect.innerHTML = '<option value="">-- Loading Programs --</option>';
+            
+            if (batchId !== '') {
+                // Fetch programs for the selected batch using AJAX
+                fetch(`dashboard.php?action=get_programs&batch_id=${batchId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        programSelect.innerHTML = '';
+                        
+                        if (data.length === 0) {
+                            programSelect.innerHTML = '<option value="">No programs available</option>';
+                        } else {
+                            programSelect.innerHTML = '<option value="">-- Select Program --</option>';
+                            data.forEach(program => {
+                                const option = document.createElement('option');
+                                option.value = program.id;
+                                option.textContent = program.name;
+                                programSelect.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching programs:', error);
+                        programSelect.innerHTML = '<option value="">Error loading programs</option>';
+                    });
+            } else {
+                programSelect.innerHTML = '<option value="">-- First Select a Batch --</option>';
             }
         });
     </script>
