@@ -217,8 +217,9 @@ $today = date('Y-m-d');
                                     <small class="deadline-date">
                                         Due: <?php echo date('M d, Y, g:i A', strtotime($assignment['due_date'])); ?>
                                     </small>
-                                    <a href="assignment_view.php?id=<?php echo $assignment['id']; ?>" 
-                                       class="btn btn-sm btn-outline-primary">Start</a>
+                                    <a href="assignment_view.php?id=<?php echo $assignment['id']; ?>" class="btn btn-sm btn-primary">
+    <i class="fas fa-arrow-right"></i> Start Assignment
+</a>
                                 </div>
                             </div>
                         <?php endwhile; ?>
