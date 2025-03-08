@@ -176,9 +176,6 @@ if (isset($_GET['action'])) {
                             <i class="fas fa-user fa-fw"></i> <?php echo htmlspecialchars($teacher['full_name']); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <li><a class="dropdown-item" href="settings.php">Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
                         </ul>
                     </li>
@@ -196,29 +193,15 @@ if (isset($_GET['action'])) {
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="courses.php">
-                        <i class="fas fa-book"></i> Courses
-                    </a>
-                </li>
+                
                 <li class="nav-item">
                     <a class="nav-link" href="assignments.php">
                         <i class="fas fa-tasks"></i> Assignments
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="students.php">
-                        <i class="fas fa-user-graduate"></i> Students
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="grades.php">
-                        <i class="fas fa-chart-bar"></i> Grades
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="messages.php">
-                        <i class="fas fa-envelope"></i> Messages
+                    <a class="nav-link" href="../logout.php">
+                        <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </li>
             </ul>

@@ -187,8 +187,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <i class="fas fa-user"></i> Admin
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            
                             <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
                         </ul>
                     </li>
@@ -211,18 +210,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white active" href="manage_modules.php">
-                    <i class="fas fa-cubes"></i> Manage Modules
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="manage_teachers.php">
-                    <i class="fas fa-chalkboard-teacher"></i> Manage Teachers
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="manage_students.php">
-                    <i class="fas fa-user-graduate"></i> Manage Students
+                <a class="nav-link text-white" href="../logout.php">
+                    <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
             </li>
         </ul>

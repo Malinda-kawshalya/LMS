@@ -194,29 +194,10 @@ foreach ($assignments as $assignment) {
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="courses.php">
-                        <i class="fas fa-book"></i> Courses
-                    </a>
-                </li>
+
                 <li class="nav-item">
                     <a class="nav-link active" href="assignments.php">
                         <i class="fas fa-tasks"></i> Assignments
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="students.php">
-                        <i class="fas fa-user-graduate"></i> Students
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="grades.php">
-                        <i class="fas fa-chart-bar"></i> Grades
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="messages.php">
-                        <i class="fas fa-envelope"></i> Messages
                     </a>
                 </li>
             </ul>

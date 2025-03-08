@@ -96,15 +96,12 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
                     <label for="password" class="form-label">Password</label>
                     <input type="password" class="form-control" id="password" name="password" required>
                 </div>
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                    <label class="form-check-label" for="remember">Remember me</label>
-                </div>
+                
                 <button type="submit" class="btn btn-primary btn-login">Login</button>
             </form>
             <div class="login-footer">
                 <p>Don't have an account? <a href="signup.php">Sign up here</a></p>
-                <p>Forgot password? <a href="forgot_password.php">Reset here</a></p>
+                
             </div>
         </div>
     </div>

@@ -132,8 +132,7 @@ function getModulesForCourse($conn, $courseId) {
                             <i class="fas fa-user"></i> Admin
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <li><hr class="dropdown-divider"></li>
+
                             <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
                         </ul>
                     </li>
@@ -156,18 +155,8 @@ function getModulesForCourse($conn, $courseId) {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white active" href="manage_modules.php">
-                    <i class="fas fa-cubes"></i> Manage Modules
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="manage_teachers.php">
-                    <i class="fas fa-chalkboard-teacher"></i> Manage Teachers
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="manage_students.php">
-                    <i class="fas fa-user-graduate"></i> Manage Students
+                <a class="nav-link text-white" href="../logout.php">
+                    <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
             </li>
         </ul>
@@ -244,12 +233,7 @@ function getModulesForCourse($conn, $courseId) {
                                                 <a href="edit_course.php?id=<?php echo $course['id']; ?>" class="btn btn-warning btn-sm me-2">
                                                     <i class="fas fa-edit"></i> Edit Course
                                                 </a>
-                                                <form method="post" action="" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this course and all its modules?');">
-                                                    <input type="hidden" name="delete_course" value="<?php echo $course['id']; ?>">
-                                                    <button type="submit" class="btn btn-danger btn-sm">
-                                                        <i class="fas fa-trash"></i> Delete Course
-                                                    </button>
-                                                </form>
+    
                                             </div>
                                         </div>
                                         
@@ -280,12 +264,7 @@ function getModulesForCourse($conn, $courseId) {
                                                                 <a href="edit_module.php?id=<?php echo $module['id']; ?>" class="btn btn-warning btn-sm me-1">
                                                                     <i class="fas fa-edit"></i> Edit
                                                                 </a>
-                                                                <form method="post" action="" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this module?');">
-                                                                    <input type="hidden" name="delete_module" value="<?php echo $module['id']; ?>">
-                                                                    <button type="submit" class="btn btn-danger btn-sm">
-                                                                        <i class="fas fa-trash"></i> Delete
-                                                                    </button>
-                                                                </form>
+                                                                
                                                             </td>
                                                         </tr>
                                                     <?php endforeach; ?>

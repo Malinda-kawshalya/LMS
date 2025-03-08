@@ -3,6 +3,10 @@ session_start();
 require_once '../includes/config.php';
 
 
+// Check if status column exists
+$check_query = "SHOW COLUMNS FROM courses LIKE 'status'";
+$result = $conn->query($check_query);
+
 // Redirect if not logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'student') {
     header("Location: ../login.php");
@@ -16,7 +20,7 @@ $query = "SELECT c.*,
          (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) AS student_count,
          (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND student_id = ?) AS is_enrolled
          FROM courses c 
-          WHERE (c.status = 'active' OR c.status IS NULL)";
+         WHERE c.status = 'active'";
 
 // Initialize parameters array with student_id
 $params = array($student_id);
@@ -90,23 +94,74 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #0d6efd;
+            --primary-light: #cfe2ff;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+        }
+        
         .course-card {
-            transition: transform 0.3s;
+            transition: all 0.3s ease;
             height: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: none;
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08);
         }
+        
         .course-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            transform: translateY(-8px);
+            box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.2);
         }
+        
         .card-img-top {
-            height: 160px;
+            height: 180px;
             object-fit: cover;
+            background: linear-gradient(135deg, var(--primary-color), #4e73df);
         }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .card-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.75rem;
+        }
+        
         .badge {
             font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.5rem 0.75rem;
+            border-radius: 50px;
         }
+        
+        .btn-sm {
+            border-radius: 50px;
+            font-weight: 500;
+            padding: 0.375rem 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-sm:hover {
+            transform: scale(1.05);
+        }
+        
         .container.py-5 {
-            padding-top: 2rem !important;
+            padding-top: 2.5rem !important;
+            padding-bottom: 2.5rem !important;
+        }
+        
+        .pagination .page-link {
+            border-radius: 4px;
+            margin: 0 3px;
+        }
+        
+        .pagination .page-item.active .page-link {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
         }
     </style>
 </head>

@@ -83,8 +83,6 @@ $total_students = $result->fetch_assoc()['total'];
                             <i class="fas fa-user"></i> Admin
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
                         </ul>
                     </li>
@@ -107,15 +105,12 @@ $total_students = $result->fetch_assoc()['total'];
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white" href="manage_teachers.php">
-                    <i class="fas fa-chalkboard-teacher"></i> Manage Teachers
+                <a class="nav-link text-white" href="../logout.php">
+                    <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="manage_students.php">
-                    <i class="fas fa-user-graduate"></i> Manage Students
-                </a>
-            </li>
+            
+
         </ul>
     </div>
 

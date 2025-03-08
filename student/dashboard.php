@@ -251,6 +251,7 @@ if ($is_ajax) {
         }
         .card {
             margin-bottom: 20px;
+            margin-left: 20px;
             border: none;
             border-radius: 10px;
             box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
@@ -272,6 +273,7 @@ if ($is_ajax) {
         .course-card {
             transition: transform 0.3s;
             height: 100%;
+            margin-left: 20px;
         }
         .course-card:hover {
             transform: translateY(-5px);
@@ -432,27 +434,6 @@ if ($is_ajax) {
                         ?>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link menu-link <?php echo $current_page == 'grades.php' ? 'active' : ''; ?>" href="grades.php" data-page="grades">
-                        <i class="fas fa-chart-bar me-2"></i> Grades
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link menu-link <?php echo $current_page == 'calendar.php' ? 'active' : ''; ?>" href="calendar.php" data-page="calendar">
-                        <i class="fas fa-calendar me-2"></i> Calendar
-                    </a>
-                </li>
-                
-                <li class="nav-item">
-                    <a class="nav-link menu-link <?php echo $current_page == 'profile.php' ? 'active' : ''; ?>" href="profile.php" data-page="profile">
-                        <i class="fas fa-user me-2"></i> Profile
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link menu-link <?php echo $current_page == 'settings.php' ? 'active' : ''; ?>" href="settings.php" data-page="settings">
-                        <i class="fas fa-cogs me-2"></i> Settings
-                    </a>
-                </li>
                 <li class="nav-item mt-3">
                     <a class="nav-link" href="../logout.php">
                         <i class="fas fa-sign-out-alt me-2"></i> Logout
@@ -466,104 +447,26 @@ if ($is_ajax) {
     <div class="content" id="content">
         <div class="container-fluid">
             <div id="dynamic-content">
-                <!-- Dashboard content will be loaded here -->
+                
                 <?php
-                // Include the appropriate content file based on current page
+                
                 if ($current_page == 'dashboard.php') {
                     include('dashboard_content.php');
                 } elseif ($current_page == 'assignments.php') {
-                    include('assignments_content.php');
+                    include('assignments.php');
                 } elseif ($current_page == 'courses.php') {
-                    include('courses_content.php');
-                } elseif ($current_page == 'grades.php') {
-                    include('grades_content.php');
-                } elseif ($current_page == 'calendar.php') {
-                    include('calendar_content.php');
-                } elseif ($current_page == 'messages.php') {
-                    include('messages_content.php');
-                } elseif ($current_page == 'available_courses.php') {
-                    include('available_courses_content.php');
-                } elseif ($current_page == 'profile.php') {
-                    include('profile_content.php');
-                } elseif ($current_page == 'settings.php') {
-                    include('settings_content.php');
-                } else {
-                    include('dashboard_content.php'); // Default to dashboard
+                    include('courses.php');
+                }    elseif ($current_page == 'available_courses.php') {
+                    include('available_courses.php');
+                }  else {
+                    include('dashboard_content.php'); 
                 }
                 ?>
             </div>
         </div>
     </div>
     
-    <!-- Course Enrollment Modal -->
-    <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">My Enrolled Courses</h5>
-        <a href="available_courses.php" class="btn btn-sm btn-primary">
-            <i class="fas fa-book me-1"></i> Browse All Courses
-        </a>
-    </div>
-    <div class="card-body">
-        <?php
-        // Fetch enrolled courses
-        $enrolled_query = "SELECT c.*, e.enrollment_date 
-                          FROM courses c 
-                          JOIN enrollments e ON c.id = e.course_id 
-                          WHERE e.student_id = ? AND c.status = 'active' 
-                          ORDER BY e.enrollment_date DESC 
-                          LIMIT 5";
-        
-        $enrolled_stmt = $conn->prepare($enrolled_query);
-        $enrolled_stmt->bind_param("i", $student_id);
-        $enrolled_stmt->execute();
-        $enrolled_courses = $enrolled_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $enrolled_stmt->close();
-        
-        if (count($enrolled_courses) > 0) {
-        ?>
-            <div class="row">
-                <?php foreach($enrolled_courses as $course): ?>
-                    <div class="col-lg-6 mb-3">
-                        <div class="card course-card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title"><?php echo htmlspecialchars($course['title']); ?></h5>
-                                <p class="card-text text-muted small">
-                                    <strong>Course Code:</strong> <?php echo htmlspecialchars($course['course_code']); ?><br>
-                                    <strong>Credit Hours:</strong> <?php echo $course['credit_hours']; ?>
-                                </p>
-                                <div class="d-flex justify-content-between align-items-center mt-3">
-                                    <small class="text-muted">
-                                        <i class="fas fa-calendar-check me-1"></i> 
-                                        Enrolled: <?php echo date('M d, Y', strtotime($course['enrollment_date'])); ?>
-                                    </small>
-                                    <a href="course_view.php?id=<?php echo $course['id']; ?>" class="btn btn-sm btn-success">
-                                        Continue
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-            
-            <?php if (count($enrolled_courses) === 5): ?>
-                <div class="text-center mt-3">
-                    <a href="enrolled_courses.php" class="btn btn-outline-primary">View All My Courses</a>
-                </div>
-            <?php endif; ?>
-            
-        <?php } else { ?>
-            <div class="text-center py-4">
-                <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">You're not enrolled in any courses yet</h5>
-                <p>Browse our catalog and enroll in courses to get started.</p>
-                <a href="available_courses.php" class="btn btn-primary mt-2">
-                    Browse Available Courses
-                </a>
-            </div>
-        <?php } ?>
-    </div>
-</div>
+
     
     <!-- Assignment Details Modal -->
     <div class="modal fade" id="assignmentModal" tabindex="-1" aria-hidden="true">
@@ -574,7 +477,7 @@ if ($is_ajax) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="assignmentDetails">
-                    <!-- Assignment details will be loaded here -->
+                    
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
