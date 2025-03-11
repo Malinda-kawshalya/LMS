@@ -105,6 +105,16 @@ $total_students = $result->fetch_assoc()['total'];
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link text-white" href="./manage_students.php">
+                    <i class="fas fa-book"></i> Manage Students
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-white" href="./manage_teachers.php">
+                    <i class="fas fa-book"></i> Manage Teachers
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link text-white" href="../logout.php">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
