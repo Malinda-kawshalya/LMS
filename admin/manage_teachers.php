@@ -138,6 +138,11 @@ $result = $conn->query($query);
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link text-white active" href="manage_students.php">
+                    <i class="fas fa-user-graduate"></i> Manage Students
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link text-white" href="../logout.php">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
@@ -179,7 +184,7 @@ $result = $conn->query($query);
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Date Added</th>
-                                    <th>Status</th>
+                                    
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -190,13 +195,7 @@ $result = $conn->query($query);
                                             <td><?= $teacher['email']; ?></td>
                                             <td><?= $teacher['phone']; ?></td>
                                             <td><?= $teacher['created_at']; ?></td>
-                                            <td>
-                                                <?php if ($teacher['status'] == 1): ?>
-                                                    <span class="badge bg-success">Active</span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-danger">Inactive</span>
-                                                <?php endif; ?>
-                                            </td>
+                                            
                                             <td>
                                                 <a href="edite_teacher.php?id=<?= $teacher['id']; ?>" class="btn btn-sm btn-warning">
                                                     <i class="bi bi-pencil-square"></i> Edit

@@ -47,7 +47,7 @@ $stmt->close();
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = trim($_POST['email']);
     $phone = trim($_POST['phone']);
-    $status = isset($_POST['status']) ? 1 : 0;
+    $status = isset($_POST['status']) ? 1 : 0; // This is correct but make sure it's being used correctly
     
     // Validate input
     $errors = [];
@@ -79,7 +79,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($errors)) {
         $update_query = "UPDATE teachers SET email = ?, phone = ?, status = ? WHERE id = ?";
         $stmt = $conn->prepare($update_query);
-        $stmt->bind_param("ssii", $email, $phone, $status, $teacher_id);
+        $stmt->bind_param("siii", $email, $phone, $status, $teacher_id);
         
         if ($stmt->execute()) {
             $_SESSION['success'] = "Teacher updated successfully";

@@ -153,6 +153,16 @@ function getModulesForCourse($conn, $courseId) {
                 <a class="nav-link text-white" href="manage_courses.php">
                     <i class="fas fa-book"></i> Manage Courses
                 </a>
+                <li class="nav-item">
+                <a class="nav-link text-white active" href="manage_students.php">
+                    <i class="fas fa-user-graduate"></i> Manage Students
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-white active" href="manage_teachers.php">
+                    <i class="fas fa-user-graduate"></i> Manage Teachers
+                </a>
+            </li>
             </li>
             <li class="nav-item">
                 <a class="nav-link text-white" href="../logout.php">
