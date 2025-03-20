@@ -130,33 +130,7 @@ $stmt->close();
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light">
-        <div class="container-fluid">
-            <button class="navbar-toggler border-0 d-md-none" id="sidebar-toggle" type="button">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <a class="navbar-brand ps-3" href="dashboard.php">
-                <i class="fas fa-graduation-cap"></i> LMS - Student
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user fa-fw"></i> <?php echo htmlspecialchars($student['full_name'] ?? ''); ?>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+
 
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">

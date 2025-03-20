@@ -386,7 +386,19 @@ if ($is_ajax) {
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user fa-fw"></i> <?php echo htmlspecialchars($student['full_name'] ?? ''); ?>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                            <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
     
@@ -407,6 +419,11 @@ if ($is_ajax) {
                 <li class="nav-item">
                     <a class="nav-link menu-link <?php echo $current_page == 'available_courses.php' ? 'active' : ''; ?>" href="available_courses.php" data-page="available_courses">
                         <i class="fas fa-plus-circle me-2"></i> Enroll in Courses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?php echo $current_page == 'calendar.php' ? 'active' : ''; ?>" href="calendar.php" data-page="calendar">
+                        <i class="fas fa-plus-circle me-2"></i> Calendar
                     </a>
                 </li>
                 <li class="nav-item">
