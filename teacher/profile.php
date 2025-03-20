@@ -254,12 +254,6 @@ $conn->close();
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li class="nav-item">
-                            <a class="nav-link active" href="calendar.php">
-                            <i class="fas fa-calendar-alt"></i> Calendar
-                            </a>
-                            </li>
                             <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
                         </ul>
                     </li>

@@ -145,12 +145,6 @@ $today = date('Y-m-d');
                                             <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo $progress; ?>%" 
                                                  aria-valuenow="<?php echo $progress; ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>
-                                        <div class="d-flex justify-content-between">
-                                            <small><?php echo $progress; ?>% complete</small>
-                                            <a href="course_view.php?id=<?php echo $course['id']; ?>" class="btn btn-sm btn-outline-primary">
-                                                Continue Learning
-                                            </a>
-                                        </div>
                                     </div>
                                 </div>
                             </div>

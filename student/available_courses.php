@@ -12,8 +12,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'student') {
     header("Location: ../login.php");
     exit();
 }
-
 $student_id = $_SESSION['user_id'];
+// Fetch student information
+$stmt = $conn->prepare("SELECT * FROM students WHERE id = ?");
+$stmt->bind_param("i", $student_id);
+$stmt->execute();
+$student = $stmt->get_result()->fetch_assoc();
+$stmt->close();
 
 // Base query with proper column references
 $query = "SELECT c.*, 
@@ -95,12 +100,54 @@ try {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #0d6efd;
-            --primary-light: #cfe2ff;
-            --secondary-color: #6c757d;
-            --success-color: #198754;
+            --primary-color: #4e73df;
+            --secondary-color: #f8f9fc;
+            --text-color: #5a5c69;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
         }
-        
+        body {
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+        .sidebar {
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            padding-top: 70px;
+            background-color: var(--primary-color);
+            color: white;
+            width: 220px;
+            transition: all 0.3s;
+        }
+        .sidebar a {
+            padding: 10px 15px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            display: block;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .sidebar .active {
+            color: white;
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid white;
+        }
+        .content {
+            margin-left: 220px;
+            padding: 20px;
+            padding-top: 80px;
+            transition: all 0.3s;
+        }
         .course-card {
             transition: all 0.3s ease;
             height: 100%;
@@ -152,6 +199,7 @@ try {
         .container.py-5 {
             padding-top: 2.5rem !important;
             padding-bottom: 2.5rem !important;
+            padding-left: 5rem;
         }
         
         .pagination .page-link {
@@ -166,8 +214,88 @@ try {
     </style>
 </head>
 <body>
-   
+            <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container-fluid">
+            <button class="navbar-toggler border-0 d-md-none" id="sidebar-toggle" type="button">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+                <i class="fas fa-graduation-cap"></i> LMS - Student
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user fa-fw"></i> <?php echo htmlspecialchars($student['full_name']); ?>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                            <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
 
+        </div>
+    </nav>
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+        <div class="position-sticky">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php" data-page="dashboard">
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?php echo $current_page == 'courses.php' ? 'active' : ''; ?>" href="courses.php" data-page="courses">
+                        <i class="fas fa-book me-2"></i> My Courses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?php echo $current_page == 'available_courses.php' ? 'active' : ''; ?>" href="available_courses.php" data-page="available_courses">
+                        <i class="fas fa-plus-circle me-2"></i> Enroll in Courses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?php echo $current_page == 'assignments.php' ? 'active' : ''; ?>" href="assignments.php" data-page="assignments">
+                        <i class="fas fa-tasks me-2"></i> Assignments
+                        <?php
+                        // Get pending assignment count
+                        $stmt = $conn->prepare("
+                            SELECT COUNT(*) as count 
+                            FROM assignments a
+                            JOIN modules m ON a.module_id = m.id
+                            JOIN courses c ON m.course_id = c.id
+                            JOIN enrollments e ON c.id = e.course_id
+                            LEFT JOIN submissions s ON a.id = s.assignment_id AND s.student_id = ?
+                            WHERE e.student_id = ? AND (s.id IS NULL) AND a.due_date > NOW()
+                        ");
+                        $stmt->bind_param("ii", $student_id, $student_id);
+                        $stmt->execute();
+                        $pending = $stmt->get_result()->fetch_assoc();
+                        $stmt->close();
+                        
+                        if ($pending['count'] > 0) {
+                            echo '<span class="badge bg-warning ms-2">' . $pending['count'] . '</span>';
+                        }
+                        ?>
+                    </a>
+                </li>
+                    
+                <li class="nav-item mt-3">
+                    <a class="nav-link" href="../logout.php">
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+     
     <div class="container py-5">
         <!-- Error Message Display -->
         <?php if (isset($error_message)): ?>
@@ -175,16 +303,6 @@ try {
                 <?php echo htmlspecialchars($error_message); ?>
             </div>
         <?php endif; ?>
-    <div class="container py-5">
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <h1 class="display-5 mb-0">Available Courses</h1>
-                <p class="lead">Browse and enroll in courses to enhance your skills.</p>
-                <a href="dashboard.php" class="btn btn-secondary mb-4">
-                    <i class="fas fa-arrow-left me-2"></i> Back
-                </a>
-            </div>
-        </div>
         <div class="container py-5">
             
         <!-- Error Message Display -->
