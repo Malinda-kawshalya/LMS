@@ -378,29 +378,13 @@ if ($is_ajax) {
                 <li class="nav-item">
                     <a class="nav-link menu-link <?php echo $current_page == 'assignments.php' ? 'active' : ''; ?>" href="assignments.php" data-page="assignments">
                         <i class="fas fa-tasks me-2"></i> Assignments
-                        <?php
-                        // Get pending assignment count
-                        $stmt = $conn->prepare("
-                            SELECT COUNT(*) as count 
-                            FROM assignments a
-                            JOIN modules m ON a.module_id = m.id
-                            JOIN courses c ON m.course_id = c.id
-                            JOIN enrollments e ON c.id = e.course_id
-                            LEFT JOIN submissions s ON a.id = s.assignment_id AND s.student_id = ?
-                            WHERE e.student_id = ? AND (s.id IS NULL) AND a.due_date > NOW()
-                        ");
-                        $stmt->bind_param("ii", $student_id, $student_id);
-                        $stmt->execute();
-                        $pending = $stmt->get_result()->fetch_assoc();
-                        $stmt->close();
-                        
-                        if ($pending['count'] > 0) {
-                            echo '<span class="badge bg-warning ms-2">' . $pending['count'] . '</span>';
-                        }
-                        ?>
                     </a>
                 </li>
-                    
+                <li class="nav-item">
+                    <a class="nav-link menu-link active" href="profile.php" data-page="profile">
+                        <i class="fas fa-user-circle me-2"></i> My Profile
+                    </a>
+                </li>
                 <li class="nav-item mt-3">
                     <a class="nav-link" href="../logout.php">
                         <i class="fas fa-sign-out-alt me-2"></i> Logout
@@ -471,12 +455,15 @@ if ($is_ajax) {
                                                 <label for="phone" class="form-label">Phone Number</label>
                                                 <input type="text" class="form-control" id="phone" name="phone" 
                                                        value="<?php echo htmlspecialchars($student['phone'] ?? ''); ?>">
+                                            </div>
+                                        </div>
                                         
                                         <div class="mb-3">
                                             <label for="address" class="form-label">Address</label>
                                             <input type="text" class="form-control" id="address" name="address" 
                                                    value="<?php echo htmlspecialchars($student['address'] ?? ''); ?>">
                                         </div>
+                                        
 
                                         
                                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -639,19 +626,6 @@ if ($is_ajax) {
                                                     </div>
                                                 </div>
                                             <?php endforeach; ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-4">
-                                <div class="col-md-12">
-                                <div class="card">
-                                        <div class="card-header">
-                                            <h5 class="card-title mb-0">Assignment Performance</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <canvas id="assignmentChart" width="400" height="200"></canvas>
                                         </div>
                                     </div>
                                 </div>

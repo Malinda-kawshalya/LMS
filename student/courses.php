@@ -241,15 +241,6 @@ $stmt->close();
                                              aria-valuemax="100">
                                         </div>
                                     </div>
-                                    <div class="d-flex justify-content-between align-items-center mt-3">
-                                        <small class="text-muted">
-                                            <?php echo $progress; ?>% Complete
-                                        </small>
-                                        <a href="course_view.php?id=<?php echo $course['id']; ?>" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            Continue Learning
-                                        </a>
-                                    </div>
                                 </div>
                             </div>
                         </div>
