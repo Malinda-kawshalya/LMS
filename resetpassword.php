@@ -6,7 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = strtolower(trim($_POST['email'])); // Convert email to lowercase and trim whitespace
 
     // Check if email exists in the database
-    $stmt = $conn->prepare("SELECT id FROM students WHERE LOWER(email) = ?");
+    $stmt = $conn->prepare("SELECT id FROM students  WHERE LOWER(email) = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $stmt->store_result();

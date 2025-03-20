@@ -1,6 +1,7 @@
 <?php
 // Start the session
 session_start();
+
 // Check if the user is logged in and is a teacher
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'teacher') {
     // Redirect to login page

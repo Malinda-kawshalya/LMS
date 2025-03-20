@@ -434,6 +434,7 @@ if ($is_ajax) {
                         ?>
                     </a>
                 </li>
+                    
                 <li class="nav-item mt-3">
                     <a class="nav-link" href="../logout.php">
                         <i class="fas fa-sign-out-alt me-2"></i> Logout

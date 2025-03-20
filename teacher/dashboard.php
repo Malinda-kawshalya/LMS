@@ -176,7 +176,9 @@ if (isset($_GET['action'])) {
                             <i class="fas fa-user fa-fw"></i> <?php echo htmlspecialchars($teacher['full_name']); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
                             <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
+                           
                         </ul>
                     </li>
                 </ul>
@@ -189,14 +191,23 @@ if (isset($_GET['action'])) {
         <div class="position-sticky">
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" href="dashboard.php">
+                    <a class="nav-link" href="dashboard.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                
+                <li class="nav-item">
+                    <a class="nav-link" href="profile.php">
+                        <i class="fas fa-user"></i> Profile
+                    </a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="assignments.php">
                         <i class="fas fa-tasks"></i> Assignments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="calendar.php">
+                        <i class="fas fa-calendar-alt"></i> Calendar
                     </a>
                 </li>
                 <li class="nav-item">
@@ -334,9 +345,12 @@ if (isset($_GET['action'])) {
                                 </div>
                                 <div class="card-body">
                                     <?php if (count($courses) > 0): ?>
-                                        <div class="list-group">
+                                        <div class="mb-3">
+                                            <input type="text" id="courseSearch" class="form-control" placeholder="Search courses...">
+                                        </div>
+                                        <div class="list-group" id="courseList">
                                             <?php foreach ($courses as $course): ?>
-                                                <a href="course_details.php?id=<?php echo $course['id']; ?>" class="list-group-item list-group-item-action">
+                                                <a href="course_details.php?id=<?php echo $course['id']; ?>" class="list-group-item list-group-item-action course-item">
                                                     <div class="d-flex w-100 justify-content-between">
                                                         <h5 class="mb-1"><?php echo htmlspecialchars($course['title']); ?></h5>
                                                         <small><?php echo htmlspecialchars($course['course_code']); ?></small>
@@ -345,6 +359,24 @@ if (isset($_GET['action'])) {
                                                 </a>
                                             <?php endforeach; ?>
                                         </div>
+                                        <script>
+                                            document.getElementById('courseSearch').addEventListener('keyup', function() {
+                                                const searchTerm = this.value.toLowerCase();
+                                                const courseItems = document.querySelectorAll('.course-item');
+                                                
+                                                courseItems.forEach(item => {
+                                                    const title = item.querySelector('h5').textContent.toLowerCase();
+                                                    const code = item.querySelector('small').textContent.toLowerCase();
+                                                    const desc = item.querySelector('p').textContent.toLowerCase();
+                                                    
+                                                    if (title.includes(searchTerm) || code.includes(searchTerm) || desc.includes(searchTerm)) {
+                                                        item.style.display = '';
+                                                    } else {
+                                                        item.style.display = 'none';
+                                                    }
+                                                });
+                                            });
+                                        </script>
                                     <?php else: ?>
                                         <p>No courses assigned yet.</p>
                                     <?php endif; ?>
