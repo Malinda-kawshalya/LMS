@@ -340,7 +340,7 @@ $stmt->close();
                         
                         <?php if (!empty($submission['file_path'])): ?>
                             <div class="mt-3 pt-3 border-top">
-                                <a href="download.php?id=<?php echo $submission['id']; ?>" class="btn btn-sm btn-outline-primary">
+                                <a href="download.php?id=<?php echo $submission['id']; ?>" class="btn btn-sm btn-outline-primary" download>
                                     <i class="fas fa-download me-1"></i> Download Your Submission
                                 </a>
                             </div>

@@ -423,7 +423,7 @@ if ($is_ajax) {
                 </li>
                 <li class="nav-item">
                     <a class="nav-link menu-link <?php echo $current_page == 'calendar.php' ? 'active' : ''; ?>" href="calendar.php" data-page="calendar">
-                        <i class="fas fa-plus-circle me-2"></i> Calendar
+                        <i class="fas fa-calendar-alt"></i> Calendar
                     </a>
                 </li>
                 <li class="nav-item">
