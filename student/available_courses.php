@@ -145,7 +145,7 @@ try {
         .content {
             margin-left: 220px;
             padding: 20px;
-            padding-top: 80px;
+            padding-top: 50px;
             transition: all 0.3s;
         }
         .course-card {
@@ -286,7 +286,11 @@ try {
                         ?>
                     </a>
                 </li>
-
+                <li class="nav-item">
+                    <a class="nav-link menu-link <?php echo $current_page == 'calendar.php' ? 'active' : ''; ?>" href="calendar.php" data-page="calendar">
+                        <i class="fas fa-calendar-alt"></i> Calendar
+                    </a>
+                </li>
                     
                 <li class="nav-item mt-3">
                     <a class="nav-link" href="../logout.php">
