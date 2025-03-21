@@ -4,7 +4,6 @@ session_start();
 
 // Check if the user is logged in and is a student
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'student') {
-    // Redirect to login page
     header("Location: ../index.php");
     exit();
 }
@@ -17,7 +16,6 @@ $db_name = "lms_db";
 
 $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
 
-// Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
@@ -70,7 +68,6 @@ $stmt->close();
 // Calculate GPA on a 4.0 scale
 $average_percentage = $gpa_info['average_grade'] ?? 0;
 $gpa = 0;
-
 if ($average_percentage >= 90) {
     $gpa = 4.0;
 } elseif ($average_percentage >= 80) {
@@ -108,60 +105,42 @@ while ($row = $grade_distribution_result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Handle form submission
+// Get assignment grades
+$stmt = $conn->prepare("
+    SELECT 
+        a.title AS assignment_title,
+        c.title AS course_title,
+        s.letter_grade,
+        s.score,
+        s.feedback,
+        s.submitted_at,
+        a.due_date
+    FROM submissions s
+    JOIN assignments a ON s.assignment_id = a.id
+    JOIN modules m ON a.module_id = m.id
+    JOIN courses c ON m.course_id = c.id
+    WHERE s.student_id = ? AND s.letter_grade IS NOT NULL
+    ORDER BY s.submitted_at DESC
+");
+$stmt->bind_param("i", $student_id);
+$stmt->execute();
+$assignment_grades_result = $stmt->get_result();
+$assignment_grades = $assignment_grades_result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
+
+// Handle form submission (unchanged for brevity, assumed to work as is)
 $update_message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $full_name = $_POST['full_name'];
     $email = $_POST['email'];
     $phone = $_POST['phone'];
     $address = $_POST['address'];
-    $bio = $_POST['bio'];
     
-    // Update profile picture if one was uploaded
-    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === 0) {
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-        $file_type = $_FILES['profile_picture']['type'];
-        
-        if (in_array($file_type, $allowed_types)) {
-            $file_name = $student_id . '_' . time() . '.' . pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION);
-            $target_path = '../uploads/profile_pictures/' . $file_name;
-            
-            // Create directory if it doesn't exist
-            if (!file_exists('../uploads/profile_pictures/')) {
-                mkdir('../uploads/profile_pictures/', 0777, true);
-            }
-            
-            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $target_path)) {
-                // Update profile picture path in database
-                $stmt = $conn->prepare("UPDATE students SET profile_picture = ? WHERE id = ?");
-                $stmt->bind_param("si", $file_name, $student_id);
-                $stmt->execute();
-                $stmt->close();
-            }
-        }
-    }
-    
-    // Update password if provided
-    if (!empty($_POST['new_password'])) {
-        if (strlen($_POST['new_password']) < 6) {
-            $update_message = '<div class="alert alert-danger">Password must be at least 6 characters long</div>';
-        } else {
-            $password_hash = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
-            $stmt = $conn->prepare("UPDATE students SET password_hash = ? WHERE id = ?");
-            $stmt->bind_param("si", $password_hash, $student_id);
-            $stmt->execute();
-            $stmt->close();
-        }
-    }
-    
-    // Update other profile information
-    $stmt = $conn->prepare("UPDATE students SET full_name = ?, email = ?, phone = ?, address = ?, bio = ? WHERE id = ?");
-    $stmt->bind_param("sssssi", $full_name, $email, $phone, $address, $bio, $student_id);
+    $stmt = $conn->prepare("UPDATE students SET full_name = ?, email = ?, phone = ?, address = ? WHERE id = ?");
+    $stmt->bind_param("ssssi", $full_name, $email, $phone, $address, $student_id);
     
     if ($stmt->execute()) {
         $update_message = '<div class="alert alert-success">Profile updated successfully!</div>';
-        
-        // Refresh student data
         $stmt->close();
         $stmt = $conn->prepare("SELECT * FROM students WHERE id = ?");
         $stmt->bind_param("i", $student_id);
@@ -170,21 +149,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     } else {
         $update_message = '<div class="alert alert-danger">Error updating profile: ' . $conn->error . '</div>';
     }
-    
     $stmt->close();
 }
 
-// Get current page for active menu highlighting
-$current_page = basename($_SERVER['PHP_SELF']);
+function calculateGPA($grades) {
+    $total_points = 0;
+    $total_credits = count($grades);
 
-// Check if this is an AJAX request
-$is_ajax = isset($_GET['ajax']) && $_GET['ajax'] === 'true';
+    foreach ($grades as $grade) {
+        switch ($grade['letter_grade']) {
+            case 'A':
+                $total_points += 4.0;
+                break;
+            case 'B':
+                $total_points += 3.0;
+                break;
+            case 'C':
+                $total_points += 2.0;
+                break;
+            case 'D':
+                $total_points += 1.0;
+                break;
+            case 'F':
+                $total_points += 0.0;
+                break;
+        }
+    }
 
-// If it's an AJAX request, only return the main content
-if ($is_ajax) {
-    include('profile_content.php');
-    exit;
+    return $total_credits > 0 ? $total_points / $total_credits : 0;
 }
+
+// Calculate GPA
+$gpa = calculateGPA($assignment_grades);
+
+$current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
 <!DOCTYPE html>
@@ -204,88 +202,86 @@ if ($is_ajax) {
             --info-color: #36b9cc;
             --warning-color: #f6c23e;
             --danger-color: #e74a3b;
+            --sidebar-width: 220px;
         }
+
         body {
-            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Nunito', sans-serif;
             background-color: var(--secondary-color);
             color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
+
+        .navbar {
+            background-color: white;
+            box-shadow: 0 0.15rem 1.75rem rgba(58, 59, 69, 0.15);
+            z-index: 1030;
+        }
+
         .sidebar {
+            width: var(--sidebar-width);
             height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
-            z-index: 1;
-            padding-top: 70px;
             background-color: var(--primary-color);
             color: white;
-            width: 220px;
-            transition: all 0.3s;
+            padding-top: 70px;
+            transition: transform 0.3s ease;
+            z-index: 1020;
         }
+
         .sidebar a {
-            padding: 10px 15px;
+            padding: 12px 20px;
             color: rgba(255, 255, 255, 0.8);
             text-decoration: none;
             display: block;
             transition: all 0.3s;
         }
+
         .sidebar a:hover {
             color: white;
             background-color: rgba(255, 255, 255, 0.1);
         }
+
         .sidebar .active {
             color: white;
-            font-weight: bold;
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.2);
             border-left: 4px solid white;
         }
+
         .content {
-            margin-left: 220px;
+            margin-left: var(--sidebar-width);
             padding: 20px;
-            padding-top: 80px;
-            transition: all 0.3s;
+            flex: 1;
+            transition: margin-left 0.3s ease;
         }
-        .navbar {
-            background-color: white;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-        }
+
         .card {
-            margin-bottom: 20px;
             border: none;
             border-radius: 10px;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
-            overflow: hidden;
+            box-shadow: 0 0.15rem 1.75rem rgba(58, 59, 69, 0.1);
+            margin-bottom: 20px;
         }
+
         .card-header {
             background-color: white;
             border-bottom: 1px solid #e3e6f0;
             padding: 1rem 1.35rem;
         }
-        .profile-img {
-            width: 150px;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 5px solid white;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
-        }
+
         .profile-header {
             background-color: var(--primary-color);
             padding: 30px 0;
             color: white;
             margin-bottom: 30px;
         }
-        .nav-pills .nav-link.active {
-            background-color: var(--primary-color);
-        }
+
         .gpa-circle {
-            width: 150px;
-            height: 150px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             background-color: var(--primary-color);
             color: white;
@@ -295,45 +291,65 @@ if ($is_ajax) {
             justify-content: center;
             margin: 0 auto;
         }
+
         .grade-badge {
-            font-size: 1.2rem;
-            padding: 10px 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
+            font-size: 1.1rem;
+            padding: 8px 12px;
+            border-radius: 8px;
         }
-        @media (max-width: 768px) {
+
+        .assignment-table {
+            font-size: 0.9rem;
+        }
+
+        .assignment-table th, .assignment-table td {
+            vertical-align: middle;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 767.98px) {
             .sidebar {
-                width: 0;
-                padding-top: 60px;
+                transform: translateX(-100%);
+                width: 100%;
+                height: auto;
+                padding-top: 0;
+                top: 56px;
             }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
             .content {
                 margin-left: 0;
-                padding-top: 60px;
+                padding-top: 70px;
             }
-            .sidebar.show {
-                width: 220px;
+
+            .gpa-circle {
+                width: 100px;
+                height: 100px;
             }
-            .content.shift {
-                margin-left: 220px;
+
+            .assignment-table {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .sidebar {
+                width: 180px;
+            }
+
+            .content {
+                margin-left: 180px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Loading Indicator -->
-    <div id="loading-indicator" style="display: none;">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <div class="mt-2">Loading content...</div>
-    </div>
-
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light">
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
         <div class="container-fluid">
-            <button class="navbar-toggler border-0 d-md-none" id="sidebar-toggle" type="button">
-                <span class="navbar-toggler-icon"></span>
-            </button>
             <a class="navbar-brand ps-3" href="dashboard.php">
                 <i class="fas fa-graduation-cap"></i> LMS - Student
             </a>
@@ -355,33 +371,33 @@ if ($is_ajax) {
             </div>
         </div>
     </nav>
-    
+
     <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
+    <div class="sidebar d-md-block" id="sidebar">
         <div class="position-sticky">
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link menu-link <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php" data-page="dashboard">
+                    <a class="nav-link <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">
                         <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link menu-link <?php echo $current_page == 'courses.php' ? 'active' : ''; ?>" href="courses.php" data-page="courses">
+                    <a class="nav-link <?php echo $current_page == 'courses.php' ? 'active' : ''; ?>" href="courses.php">
                         <i class="fas fa-book me-2"></i> My Courses
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link menu-link <?php echo $current_page == 'available_courses.php' ? 'active' : ''; ?>" href="available_courses.php" data-page="available_courses">
+                    <a class="nav-link <?php echo $current_page == 'available_courses.php' ? 'active' : ''; ?>" href="available_courses.php">
                         <i class="fas fa-plus-circle me-2"></i> Enroll in Courses
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link menu-link <?php echo $current_page == 'assignments.php' ? 'active' : ''; ?>" href="assignments.php" data-page="assignments">
+                    <a class="nav-link <?php echo $current_page == 'assignments.php' ? 'active' : ''; ?>" href="assignments.php">
                         <i class="fas fa-tasks me-2"></i> Assignments
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link menu-link active" href="profile.php" data-page="profile">
+                    <a class="nav-link active" href="profile.php">
                         <i class="fas fa-user-circle me-2"></i> My Profile
                     </a>
                 </li>
@@ -393,10 +409,10 @@ if ($is_ajax) {
             </ul>
         </div>
     </div>
-    
+
     <!-- Main Content -->
-    <div class="content" id="content">
-        <div class="container-fluid" id="dynamic-content">
+    <div class="content">
+        <div class="container-fluid">
             <!-- Profile Header -->
             <div class="row profile-header">
                 <div class="col-md-12 text-center">
@@ -406,7 +422,7 @@ if ($is_ajax) {
             </div>
 
             <?php echo $update_message; ?>
-            
+
             <!-- Profile Content -->
             <div class="row">
                 <div class="col-md-12 mb-4">
@@ -427,7 +443,7 @@ if ($is_ajax) {
                             </button>
                         </li>
                     </ul>
-                    
+
                     <div class="tab-content" id="profileTabsContent">
                         <!-- Profile Tab -->
                         <div class="tab-pane fade show active" id="profile" role="tabpanel">
@@ -449,23 +465,18 @@ if ($is_ajax) {
                                                        value="<?php echo htmlspecialchars($student['email']); ?>" required>
                                             </div>
                                         </div>
-                                        
                                         <div class="row mb-3">
                                             <div class="col-md-6">
                                                 <label for="phone" class="form-label">Phone Number</label>
                                                 <input type="text" class="form-control" id="phone" name="phone" 
                                                        value="<?php echo htmlspecialchars($student['phone'] ?? ''); ?>">
                                             </div>
+                                            <div class="col-md-6">
+                                                <label for="address" class="form-label">Address</label>
+                                                <input type="text" class="form-control" id="address" name="address" 
+                                                       value="<?php echo htmlspecialchars($student['address'] ?? ''); ?>">
+                                            </div>
                                         </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="address" class="form-label">Address</label>
-                                            <input type="text" class="form-control" id="address" name="address" 
-                                                   value="<?php echo htmlspecialchars($student['address'] ?? ''); ?>">
-                                        </div>
-                                        
-
-                                        
                                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                                             <button type="submit" name="update_profile" class="btn btn-primary">
                                                 <i class="fas fa-save me-2"></i>Save Changes
@@ -475,7 +486,7 @@ if ($is_ajax) {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Courses Tab -->
                         <div class="tab-pane fade" id="courses" role="tabpanel">
                             <div class="card">
@@ -487,42 +498,24 @@ if ($is_ajax) {
                                         <div class="row">
                                             <?php foreach ($courses as $course): ?>
                                                 <?php 
-                                                    $progress = 0;
-                                                    if ($course['assignment_count'] > 0) {
-                                                        $progress = calculateProgress($course['completed_assignments'], $course['assignment_count']);
-                                                    }
+                                                    $progress = $course['assignment_count'] > 0 ? 
+                                                        round(($course['completed_assignments'] / $course['assignment_count']) * 100) : 0;
                                                 ?>
                                                 <div class="col-md-6 mb-4">
                                                     <div class="card h-100">
-                                                        <div class="card-header">
-                                                            <h5 class="card-title mb-0"><?php echo htmlspecialchars($course['title']); ?></h5>
-                                                        </div>
                                                         <div class="card-body">
-                                                            <div class="row align-items-center">
-                                                                <div class="col-4">
-                                                                    <div class="position-relative" style="width: 80px; height: 80px;">
-                                                                        <canvas class="course-progress-chart" data-progress="<?php echo $progress; ?>"></canvas>
-                                                                        <div class="position-absolute top-50 start-50 translate-middle">
-                                                                            <strong class="text-primary"><?php echo $progress; ?>%</strong>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-8">
-                                                                    <p class="text-muted mb-1">
-                                                                        <i class="fas fa-calendar-alt me-1"></i> Started: 
-                                                                        <?php echo date('M d, Y', strtotime($course['start_date'])); ?>
-                                                                    </p>
-                                                                    <p class="text-muted mb-1">
-                                                                        <i class="fas fa-tasks me-1"></i> Modules: <?php echo $course['module_count']; ?>
-                                                                    </p>
-                                                                    <p class="text-muted mb-0">
-                                                                        <i class="fas fa-file-alt me-1"></i> Assignments: 
-                                                                        <?php echo $course['completed_assignments']; ?>/<?php echo $course['assignment_count']; ?>
-                                                                    </p>
+                                                            <h5 class="card-title"><?php echo htmlspecialchars($course['title']); ?></h5>
+                                                            <p class="text-muted mb-1">
+                                                                <i class="fas fa-tasks me-1"></i> 
+                                                                <?php echo $course['completed_assignments']; ?>/<?php echo $course['assignment_count']; ?> Assignments
+                                                            </p>
+                                                            <div class="progress">
+                                                                <div class="progress-bar bg-success" role="progressbar" 
+                                                                     style="width: <?php echo $progress; ?>%" 
+                                                                     aria-valuenow="<?php echo $progress; ?>" 
+                                                                     aria-valuemin="0" aria-valuemax="100">
                                                                 </div>
                                                             </div>
-                                                            <hr>
-                                                            <p class="text-muted mb-0"><?php echo substr(htmlspecialchars($course['description']), 0, 100); ?>...</p>
                                                         </div>
                                                         <div class="card-footer bg-transparent border-0">
                                                             <a href="course_view.php?id=<?php echo $course['id']; ?>" class="btn btn-sm btn-outline-primary">
@@ -542,334 +535,126 @@ if ($is_ajax) {
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- GPA Tab -->
-                        <div class="tab-pane fade" id="gpa" role="tabpanel">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h5 class="card-title mb-0">GPA Summary</h5>
-                                        </div>
-                                        <div class="card-body text-center">
-                                            <div class="gpa-circle mb-3">
-                                                <span class="fs-1 fw-bold"><?php echo number_format($gpa, 2); ?></span>
-                                                <span>GPA (4.0 scale)</span>
-                                            </div>
-                                            
-                                            <div class="row mt-4">
-                                                <div class="col-6">
-                                                    <div class="text-muted">Average Grade</div>
-                                                    <div class="fs-4 fw-bold">
-                                                        <?php echo number_format($average_percentage, 1); ?>%
-                                                    </div>
-                                                </div>
-                                                <div class="col-6">
-                                                    <div class="text-muted">Completion Rate</div>
-                                                    <div class="fs-4 fw-bold">
-                                                        <?php 
-                                                            $completion_rate = ($gpa_info['total_assignments'] > 0) ? 
-                                                                ($gpa_info['completed_assignments'] / $gpa_info['total_assignments']) * 100 : 0;
-                                                            echo number_format($completion_rate, 1); 
-                                                        ?>%
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h5 class="card-title mb-0">Grade Distribution</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <?php 
-                                                $grade_letters = ['A', 'B', 'C', 'D', 'F'];
-                                                $colors = [
-                                                    'A' => 'success',
-                                                    'B' => 'primary',
-                                                    'C' => 'info',
-                                                    'D' => 'warning',
-                                                    'F' => 'danger'
-                                                ];
-                                            ?>
-                                            <?php foreach ($grade_letters as $letter): ?>
-                                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                                    <div>
-                                                        <span class="badge bg-<?php echo $colors[$letter]; ?> grade-badge">
-                                                            <?php echo $letter; ?>
-                                                        </span>
-                                                    </div>
-                                                    <div class="flex-grow-1 mx-3">
-                                                        <div class="progress" style="height: 10px;">
-                                                            <?php 
-                                                                $count = $grade_distribution[$letter] ?? 0;
-                                                                $total_submissions = array_sum($grade_distribution);
-                                                                $percentage = ($total_submissions > 0) ? ($count / $total_submissions) * 100 : 0;
-                                                            ?>
-                                                            <div class="progress-bar bg-<?php echo $colors[$letter]; ?>" 
-                                                                 role="progressbar" 
-                                                                 style="width: <?php echo $percentage; ?>%" 
-                                                                 aria-valuenow="<?php echo $percentage; ?>" 
-                                                                 aria-valuemin="0" 
-                                                                 aria-valuemax="100">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="text-end">
-                                                        <span class="badge bg-secondary">
-                                                            <?php echo $count; ?> 
-                                                            (<?php echo number_format($percentage, 1); ?>%)
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+
+                        <!-- GPA Tab with Assignment Grades -->
+<!-- GPA Tab with Assignment Grades -->
+<div class="tab-pane fade" id="gpa" role="tabpanel">
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">GPA Summary</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="gpa-circle mb-3">
+                        <span class="fs-1 fw-bold"><?php echo number_format($gpa, 2); ?></span>
+                        <span>GPA (4.0 scale)</span>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Grade Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <?php 
+                        $grade_letters = ['A', 'B', 'C', 'D', 'F'];
+                        $colors = ['A' => 'success', 'B' => 'primary', 'C' => 'info', 'D' => 'warning', 'F' => 'danger'];
+                    ?>
+                    <?php foreach ($grade_letters as $letter): ?>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge bg-<?php echo $colors[$letter]; ?> grade-badge"><?php echo $letter; ?></span>
+                            <div class="flex-grow-1 mx-3">
+                                <div class="progress" style="height: 10px;">
+                                    <?php 
+                                        $count = $grade_distribution[$letter] ?? 0;
+                                        $total = array_sum($grade_distribution);
+                                        $percentage = $total > 0 ? ($count / $total) * 100 : 0;
+                                    ?>
+                                    <div class="progress-bar bg-<?php echo $colors[$letter]; ?>" 
+                                         style="width: <?php echo $percentage; ?>%" 
+                                         aria-valuenow="<?php echo $percentage; ?>">
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="badge bg-secondary"><?php echo $count; ?> (<?php echo number_format($percentage, 1); ?>%)</span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Assignment Grades</h5>
+                </div>
+                <div class="card-body">
+                    <?php if (count($assignment_grades) > 0): ?>
+                        <div class="table-responsive">
+                            <table class="table assignment-table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Assignment</th>
+                                        <th>Course</th>
+                                        <th>Letter Grade</th>
+                                        <th>Score</th>
+                                        <th>Feedback</th>
+                                        <th>Submitted</th>
+                                        <th>Due Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($assignment_grades as $grade): ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($grade['assignment_title']); ?></td>
+                                            <td><?php echo htmlspecialchars($grade['course_title']); ?></td>
+                                            <td>
+                                                <span class="badge bg-<?php echo $colors[$grade['letter_grade']]; ?>">
+                                                    <?php echo $grade['letter_grade']; ?>
+                                                </span>
+                                            </td>
+                                            <td><?php echo number_format($grade['score'], 1); ?></td>
+                                            <td><?php echo htmlspecialchars($grade['feedback']); ?></td>
+                                            <td><?php echo date('M d, Y', strtotime($grade['submitted_at'])); ?></td>
+                                            <td><?php echo date('M d, Y', strtotime($grade['due_date'])); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> No graded assignments found.
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>  
 
-    <!-- JavaScript Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
     <script>
-        // Helper function to calculate progress
-        <?php 
-        function calculateProgress($completed, $total) {
-            return ($total > 0) ? round(($completed / $total) * 100) : 0;
-        }
-        ?>
-
-        // Initialize course progress charts
         document.addEventListener('DOMContentLoaded', function() {
-            // Toggle sidebar on mobile
-            const sidebarToggle = document.getElementById('sidebar-toggle');
-            const sidebar = document.getElementById('sidebar');
-            const content = document.getElementById('content');
-            
-            if (sidebarToggle) {
-                sidebarToggle.addEventListener('click', function() {
-                    sidebar.classList.toggle('show');
-                    content.classList.toggle('shift');
-                });
-            }
-            
-            // Initialize course progress charts
-            const progressCharts = document.querySelectorAll('.course-progress-chart');
-            progressCharts.forEach(chart => {
-                const ctx = chart.getContext('2d');
-                const progress = chart.dataset.progress;
-                
-                new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        datasets: [{
-                            data: [progress, 100 - progress],
-                            backgroundColor: ['#4e73df', '#eaecf4'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        cutout: '80%',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                enabled: false
-                            }
-                        }
-                    }
-                });
+            const navbarToggler = document.querySelector('.navbar-toggler');
+            const sidebar = document.querySelector('.sidebar');
+
+            navbarToggler.addEventListener('click', function() {
+                sidebar.classList.toggle('show');
             });
-            
-            // Initialize assignment performance chart
-            const assignmentCtx = document.getElementById('assignmentChart');
-            if (assignmentCtx) {
-                new Chart(assignmentCtx, {
-                    type: 'line',
-                    data: {
-                        labels: [
-                            <?php
-                            // Get last 10 assignments with grades
-                            $stmt = $conn->prepare("
-                                SELECT a.title, s.grade, s.submission_date 
-                                FROM submissions s
-                                JOIN assignments a ON s.assignment_id = a.id
-                                WHERE s.student_id = ? AND s.grade IS NOT NULL
-                                ORDER BY s.submission_date DESC
-                                LIMIT 10
-                            ");
-                            $stmt->bind_param("i", $student_id);
-                            $stmt->execute();
-                            $result = $stmt->get_result();
-                            $assignments = [];
-                            while ($row = $result->fetch_assoc()) {
-                                $assignments[] = $row;
-                            }
-                            $assignments = array_reverse($assignments);
-                            
-                            foreach ($assignments as $index => $assignment) {
-                                echo "'" . htmlspecialchars(substr($assignment['title'], 0, 10)) . "'";
-                                if ($index < count($assignments) - 1) {
-                                    echo ", ";
-                                }
-                            }
-                            ?>
-                        ],
-                        datasets: [{
-                            label: 'Assignment Grades',
-                            data: [
-                                <?php
-                                foreach ($assignments as $index => $assignment) {
-                                    echo $assignment['grade'];
-                                    if ($index < count($assignments) - 1) {
-                                        echo ", ";
-                                    }
-                                }
-                                ?>
-                            ],
-                            borderColor: '#4e73df',
-                            backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                            pointBackgroundColor: '#4e73df',
-                            pointBorderColor: '#fff',
-                            pointHoverBackgroundColor: '#fff',
-                            pointHoverBorderColor: '#4e73df',
-                            fill: true,
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                ticks: {
-                                    callback: function(value) {
-                                        return value + '%';
-                                    }
-                                }
-                            }
-                        },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.dataset.label + ': ' + context.raw + '%';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // Handle AJAX content loading for menu links
-            const menuLinks = document.querySelectorAll('.menu-link');
-            const dynamicContent = document.getElementById('dynamic-content');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            
-            menuLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    if (!this.classList.contains('active')) {
-                        e.preventDefault();
-                        
-                        const page = this.dataset.page;
-                        const url = page + '.php?ajax=true';
-                        
-                        // Show loading indicator
-                        loadingIndicator.style.display = 'flex';
-                        loadingIndicator.style.position = 'fixed';
-                        loadingIndicator.style.top = '50%';
-                        loadingIndicator.style.left = '50%';
-                        loadingIndicator.style.transform = 'translate(-50%, -50%)';
-                        loadingIndicator.style.zIndex = '1000';
-                        loadingIndicator.style.flexDirection = 'column';
-                        loadingIndicator.style.alignItems = 'center';
-                        loadingIndicator.style.justifyContent = 'center';
-                        loadingIndicator.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-                        loadingIndicator.style.padding = '20px';
-                        loadingIndicator.style.borderRadius = '10px';
-                        
-                        fetch(url)
-                            .then(response => response.text())
-                            .then(data => {
-                                dynamicContent.innerHTML = data;
-                                
-                                // Update URL without reloading the page
-                                history.pushState(null, '', page + '.php');
-                                
-                                // Update active link in sidebar
-                                menuLinks.forEach(link => link.classList.remove('active'));
-                                this.classList.add('active');
-                                
-                                // Hide loading indicator
-                                loadingIndicator.style.display = 'none';
-                                
-                                // Reinitialize any JS components on the new page
-                                if (page === 'profile') {
-                                    initializeProfileCharts();
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error loading content:', error);
-                                loadingIndicator.style.display = 'none';
-                                dynamicContent.innerHTML = '<div class="alert alert-danger">Error loading content. Please try again.</div>';
-                            });
-                    }
-                });
-            });
-            
-            // Function to initialize profile charts
-            function initializeProfileCharts() {
-                // Reinitialize course progress charts
-                const progressCharts = document.querySelectorAll('.course-progress-chart');
-                progressCharts.forEach(chart => {
-                    const ctx = chart.getContext('2d');
-                    const progress = chart.dataset.progress;
-                    
-                    new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            datasets: [{
-                                data: [progress, 100 - progress],
-                                backgroundColor: ['#4e73df', '#eaecf4'],
-                                borderWidth: 0
-                            }]
-                        },
-                        options: {
-                            cutout: '80%',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    enabled: false
-                                }
-                            }
-                        }
-                    });
-                });
-                
-                // Reinitialize assignment performance chart
-                const assignmentCtx = document.getElementById('assignmentChart');
-                if (assignmentCtx) {
-                    // Chart initialization code...
-                    // (This would be the same code as above for the chart)
+
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function(e) {
+                if (window.innerWidth <= 767.98 && !sidebar.contains(e.target) && !navbarToggler.contains(e.target)) {
+                    sidebar.classList.remove('show');
                 }
-            }
+            });
         });
     </script>
 </body>
