@@ -285,7 +285,7 @@ $total_students = $result->fetch_assoc()['total'];
                 </div>
             </div>
             <?php
-// Add this after the existing SQL queries at the top of the file
+
 
 // Get all courses for the dropdown
 $stmt = $conn->prepare("
@@ -377,10 +377,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['module_title'])) {
     $stmt->close();
 }
 
-// Add this HTML code after the "Create Course Card" section and before the closing </div> of the content div
+
 ?>
 
-<!-- Add this HTML right before the closing </div> of the content div -->
+
 
 <!-- Create Module Card -->
 <div class="card shadow mb-4">
