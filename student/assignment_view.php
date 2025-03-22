@@ -11,6 +11,38 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'student') {
 $student_id = $_SESSION['user_id'];
 $assignment_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
+// Check if we're trying to download a file
+if (isset($_GET['download']) && isset($_GET['submission_id'])) {
+    $submission_id = (int)$_GET['submission_id'];
+    
+    // Fetch submission details
+    $stmt = $conn->prepare("SELECT * FROM submissions WHERE id = ? AND student_id = ?");
+    $stmt->bind_param("ii", $submission_id, $_SESSION['user_id']);
+    $stmt->execute();
+    $submission = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$submission) {
+        die("Invalid submission ID or you do not have permission to download this file.");
+    }
+
+    $file_path = '../uploads/submissions/' . $submission['file_path'];
+
+    if (!file_exists($file_path)) {
+        die("File not found.");
+    }
+
+    header('Content-Description: File Transfer');
+    header('Content-Type: application/octet-stream');
+    header('Content-Disposition: attachment; filename="' . basename($file_path) . '"');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate');
+    header('Pragma: public');
+    header('Content-Length: ' . filesize($file_path));
+    readfile($file_path);
+    exit;
+}
+
 // Fetch assignment details
 $stmt = $conn->prepare("
     SELECT a.*, m.title as module_title, c.title as course_title 
@@ -338,9 +370,10 @@ $stmt->close();
                             </div>
                         </div>
                         
-                        <?php if (!empty($submission['file_path'])): ?>
+                        <!-- Add download link if file exists -->
+                        <?php if (isset($submission['file_path']) && !empty($submission['file_path'])): ?>
                             <div class="mt-3 pt-3 border-top">
-                                <a href="download.php?id=<?php echo $submission['id']; ?>" class="btn btn-sm btn-outline-primary" download>
+                                <a href="assignment_view.php?id=<?php echo $assignment_id; ?>&download=1&submission_id=<?php echo $submission['id']; ?>" class="btn btn-sm btn-primary">
                                     <i class="fas fa-download me-1"></i> Download Your Submission
                                 </a>
                             </div>
