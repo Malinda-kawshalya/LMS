@@ -4,7 +4,6 @@ session_start();
 
 // Check if the user is logged in and is a teacher
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'teacher') {
-    // Redirect to login page
     header("Location: ../index.php");
     exit();
 }
@@ -17,7 +16,6 @@ $db_name = "lms_db";
 
 $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
 
-// Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
@@ -35,12 +33,8 @@ $month = isset($_GET['month']) ? intval($_GET['month']) : intval(date('m'));
 $year = isset($_GET['year']) ? intval($_GET['year']) : intval(date('Y'));
 
 // Validate month and year
-if ($month < 1 || $month > 12) {
-    $month = date('m');
-}
-if ($year < 2000 || $year > 2100) {
-    $year = date('Y');
-}
+if ($month < 1 || $month > 12) $month = date('m');
+if ($year < 2000 || $year > 2100) $year = date('Y');
 
 // Calculate previous and next month
 $prev_month = $month - 1;
@@ -70,22 +64,20 @@ $end_date = date('Y-m-d', mktime(0, 0, 0, $month, $days_in_month, $year));
 $stmt = $conn->prepare("
     SELECT a.id, a.title, a.due_date, a.description, c.title AS course_title, c.course_code
     FROM assignments a
-    JOIN courses c ON a.course_id = c.id
+    JOIN modules m ON a.module_id = m.id
+    JOIN courses c ON m.course_id = c.id
     JOIN teacher_courses tc ON c.id = tc.course_id
-    WHERE tc.teacher_id = ? AND a.due_date BETWEEN ? AND ?
+    WHERE tc.teacher_id = ?
+    AND a.due_date BETWEEN ? AND ?
     ORDER BY a.due_date
 ");
 $stmt->bind_param("iss", $teacher_id, $start_date, $end_date);
 $stmt->execute();
 $assignments_result = $stmt->get_result();
 
-// Create an array of assignments indexed by day
 $assignments_by_day = [];
 while ($row = $assignments_result->fetch_assoc()) {
     $day = intval(date('j', strtotime($row['due_date'])));
-    if (!isset($assignments_by_day[$day])) {
-        $assignments_by_day[$day] = [];
-    }
     $assignments_by_day[$day][] = $row;
 }
 $stmt->close();
@@ -95,11 +87,14 @@ $today = date('Y-m-d');
 $next_week = date('Y-m-d', strtotime('+7 days'));
 
 $stmt = $conn->prepare("
-    SELECT a.id, a.title, a.due_date, c.title AS course_title, c.course_code
+    SELECT a.id, a.title, a.due_date, c.title AS course_title, c.course_code,
+    (SELECT COUNT(*) FROM submissions WHERE assignment_id = a.id) AS submission_count
     FROM assignments a
-    JOIN courses c ON a.course_id = c.id
+    JOIN modules m ON a.module_id = m.id
+    JOIN courses c ON m.course_id = c.id
     JOIN teacher_courses tc ON c.id = tc.course_id
-    WHERE tc.teacher_id = ? AND a.due_date BETWEEN ? AND ?
+    WHERE tc.teacher_id = ?
+    AND a.due_date BETWEEN ? AND ?
     ORDER BY a.due_date
     LIMIT 5
 ");
@@ -108,8 +103,18 @@ $stmt->execute();
 $upcoming_assignments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-// Close database connection
-$conn->close();
+$stmt = $conn->prepare("
+    SELECT COUNT(DISTINCT c.id) as course_count 
+    FROM courses c
+    JOIN teacher_courses tc ON c.id = tc.course_id
+    WHERE tc.teacher_id = ?
+");
+$stmt->bind_param("i", $teacher_id);
+$stmt->execute();
+$course_count = $stmt->get_result()->fetch_assoc()['course_count'];
+$stmt->close();
+
+
 ?>
 
 <!DOCTYPE html>
@@ -117,91 +122,100 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assignment Calendar - LMS</title>
+    <title>Teacher Assignment Calendar - LMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        :root {
+            --sidebar-bg: #4e73df;
+            --mobile-menu-bg: #36b9cc;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            background-color: white;
+            box-shadow: 0 0.15rem 1.75rem rgba(58, 59, 69, 0.15);
+            z-index: 1030;
+        }
+
         .sidebar {
+            width: 220px;
             height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
-            z-index: 1;
-            padding-top: 70px;
-            background-color: #4e73df;
+            background-color: var(--sidebar-bg);
             color: white;
+            padding-top: 70px;
+            transition: transform 0.3s ease;
+            z-index: 1020;
         }
+
         .sidebar a {
             color: rgba(255, 255, 255, 0.8);
             text-decoration: none;
+            padding: 10px 20px;
+            display: block;
         }
+
         .sidebar a:hover {
             color: white;
+            background-color: rgba(255, 255, 255, 0.1);
         }
+
         .content {
+            margin-left: 220px;
             padding: 20px;
-            padding-top: 80px;
+            flex: 1;
+            transition: margin-left 0.3s ease;
         }
-        @media (min-width: 768px) {
-            .content {
-                margin-left: 220px;
-            }
-        }
-        @media (max-width: 767.98px) {
-            .sidebar {
-                position: static;
-                height: auto;
-                padding-top: 0;
-            }
-            .content {
-                margin-left: 0;
-            }
-        }
-        .navbar {
-            background-color: white;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-        }
-        .card {
-            margin-bottom: 20px;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
-            border: none;
-            border-radius: 0.35rem;
-        }
-        .card-header {
-            background-color: #f8f9fc;
-            border-bottom: 1px solid #e3e6f0;
-        }
+
         .mobile-menu {
-            background-color: #4e73df;
+            display: none;
+            background-color: var(--mobile-menu-bg);
             padding: 10px;
             margin-bottom: 20px;
             border-radius: 5px;
-            display: none;
         }
-        @media (max-width: 767.98px) {
-            .mobile-menu {
-                display: block;
-            }
-        }
+
         .mobile-menu a {
             color: white;
             text-decoration: none;
             margin-right: 15px;
         }
+
         .mobile-menu a:hover {
             color: rgba(255, 255, 255, 0.8);
         }
-        
-        /* Calendar styles */
+
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 0.15rem 1.75rem rgba(58, 59, 69, 0.1);
+            border: none;
+            border-radius: 0.35rem;
+        }
+
+        .card-header {
+            background-color: #f8f9fc;
+            border-bottom: 1px solid #e3e6f0;
+        }
+
         .calendar {
             width: 100%;
             border-collapse: collapse;
         }
+
         .calendar th {
             background-color: #f8f9fc;
             text-align: center;
             padding: 10px;
         }
+
         .calendar td {
             width: 14.28%;
             height: 100px;
@@ -209,24 +223,21 @@ $conn->close();
             padding: 5px;
             border: 1px solid #e3e6f0;
         }
+
         .calendar .today {
-            background-color: #fff8e6;
+            background-color: #e6f4ff;
         }
+
         .calendar .other-month {
             background-color: #f8f9fc;
             color: #aaa;
         }
+
         .calendar .day-number {
             font-weight: bold;
             margin-bottom: 5px;
         }
-        .assignment-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-left: 5px;
-        }
+
         .assignment-item {
             margin-bottom: 2px;
             padding: 2px;
@@ -236,110 +247,127 @@ $conn->close();
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
         .assignment-item a {
             color: inherit;
             text-decoration: none;
         }
+
         .assignment-item:hover {
             opacity: 0.8;
         }
-        .assignment-info {
-            position: absolute;
-            display: none;
-            background-color: white;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
-            z-index: 1000;
-            width: 250px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
+
         .calendar-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
+            flex-wrap: wrap;
         }
+
         .calendar-title {
             font-size: 1.5rem;
             font-weight: bold;
         }
+
         .calendar-nav {
             display: flex;
             gap: 10px;
         }
+
+        @media (max-width: 767.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 100%;
+                height: auto;
+                padding-top: 0;
+                position: fixed;
+                top: 56px;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .content {
+                margin-left: 0;
+                padding-top: 70px;
+            }
+
+            .mobile-menu {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .calendar td {
+                height: 80px;
+                font-size: 0.9rem;
+            }
+
+            .calendar-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .sidebar {
+                width: 180px;
+            }
+
+            .content {
+                margin-left: 180px;
+            }
+
+            .calendar td {
+                height: 90px;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
-        <div class="container-fluid">
-            <a class="navbar-brand ps-3" href="#">LMS - Teacher</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user fa-fw"></i> <?php echo htmlspecialchars($teacher['full_name']); ?>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-    
+
     <!-- Sidebar -->
-    <div class="sidebar col-md-3 col-lg-2 d-md-block d-none">
+    <div class="sidebar d-md-block">
         <div class="position-sticky">
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link" href="dashboard.php">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
-                    </a>
+                    <a class="nav-link" href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="profile.php">
-                        <i class="fas fa-user"></i> Profile
-                    </a>
+                    <a class="nav-link" href="courses.php"><i class="fas fa-book me-2"></i> My Courses</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="assignments.php">
-                        <i class="fas fa-tasks"></i> Assignments
-                    </a>
+                    <a class="nav-link" href="create_course.php"><i class="fas fa-plus-circle me-2"></i> Create Course</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" href="calendar.php">
-                        <i class="fas fa-calendar-alt"></i> Calendar
-                    </a>
+                    <a class="nav-link" href="assignments.php"><i class="fas fa-tasks"></i> Assignments</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
+                    <a class="nav-link active" href="calendar.php"><i class="fas fa-calendar-alt"></i> Calendar</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </li>
             </ul>
         </div>
     </div>
-    
+
     <!-- Main Content -->
     <div class="content">
         <div class="container-fluid">
             <!-- Mobile Menu -->
-            <div class="mobile-menu">
+            <div class="mobile-menu d-md-none">
                 <a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-                <a href="profile.php"><i class="fas fa-user"></i> Profile</a>
+                <a href="courses.php"><i class="fas fa-book"></i> Courses</a>
+                <a href="create_course.php"><i class="fas fa-plus-circle"></i> Create Course</a>
                 <a href="assignments.php"><i class="fas fa-tasks"></i> Assignments</a>
                 <a href="calendar.php"><i class="fas fa-calendar-alt"></i> Calendar</a>
                 <a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
             </div>
-            
+
             <div class="row">
                 <div class="col-md-8">
                     <!-- Calendar Widget -->
@@ -360,7 +388,6 @@ $conn->close();
                                     </a>
                                 </div>
                             </div>
-                            
                             <table class="calendar">
                                 <thead>
                                     <tr>
@@ -377,47 +404,35 @@ $conn->close();
                                     <?php
                                     $current_day = 1;
                                     $current_date = date('Y-m-d');
-                                    
-                                    // Calculate the number of days we need to show from the previous month
                                     $prev_month_days = $first_day_of_week;
-                                    
-                                    // Calculate the number of rows needed
                                     $total_cells = $prev_month_days + $days_in_month;
                                     $total_rows = ceil($total_cells / 7);
-                                    
+
                                     for ($i = 0; $i < $total_rows; $i++) {
                                         echo "<tr>";
-                                        
                                         for ($j = 0; $j < 7; $j++) {
                                             $day_class = "";
                                             $day_content = "";
-                                            
+
                                             if (($i == 0 && $j < $first_day_of_week) || ($current_day > $days_in_month)) {
-                                                // Previous month or next month
                                                 $day_class = "other-month";
                                                 if ($i == 0 && $j < $first_day_of_week) {
-                                                    // Previous month
                                                     $prev_month_day = date('j', strtotime('-' . ($first_day_of_week - $j) . ' days', $first_day));
                                                     $day_content = $prev_month_day;
                                                 } else {
-                                                    // Next month
                                                     $next_month_day = $current_day - $days_in_month;
                                                     $day_content = $next_month_day;
                                                     $current_day++;
                                                 }
                                             } else {
-                                                // Current month
                                                 $day_content = $current_day;
                                                 $current_date_compare = date('Y-m-d', mktime(0, 0, 0, $month, $current_day, $year));
-                                                
                                                 if ($current_date_compare == $current_date) {
                                                     $day_class = "today";
                                                 }
-                                                
-                                                // Add assignments for this day
+
                                                 if (isset($assignments_by_day[$current_day])) {
-                                                    $assignments = $assignments_by_day[$current_day];
-                                                    foreach ($assignments as $assignment) {
+                                                    foreach ($assignments_by_day[$current_day] as $assignment) {
                                                         $color = sprintf('#%06X', mt_rand(0, 0xAAAAAA));
                                                         $day_content .= '<div class="assignment-item" style="background-color: ' . $color . '20; border-left: 3px solid ' . $color . ';">';
                                                         $day_content .= '<a href="assignment_details.php?id=' . $assignment['id'] . '" title="' . htmlspecialchars($assignment['title']) . '">';
@@ -425,19 +440,13 @@ $conn->close();
                                                         $day_content .= '</a></div>';
                                                     }
                                                 }
-                                                
                                                 $current_day++;
                                             }
-                                            
-                                            echo '<td class="' . $day_class . '">';
-                                            echo '<div class="day-number">' . $day_content . '</div>';
-                                            echo '</td>';
+
+                                            echo '<td class="' . $day_class . '"><div class="day-number">' . $day_content . '</div></td>';
                                         }
-                                        
                                         echo "</tr>";
-                                        if ($current_day > $days_in_month) {
-                                            break;
-                                        }
+                                        if ($current_day > $days_in_month) break;
                                     }
                                     ?>
                                 </tbody>
@@ -445,8 +454,41 @@ $conn->close();
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="col-md-4">
+                    <!-- Quick Stats -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Quick Stats</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary text-white p-3 rounded me-3">
+                                            <i class="fas fa-book"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="mb-0"><?php echo $course_count; ?></h5>
+                                            <small class="text-muted">Total Courses</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-success text-white p-3 rounded me-3">
+                                            <i class="fas fa-tasks"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="mb-0"><?php echo count($upcoming_assignments); ?></h5>
+                                            <small class="text-muted">Upcoming Assignments</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Upcoming Assignments -->
                     <div class="card">
                         <div class="card-header">
@@ -466,18 +508,8 @@ $conn->close();
                                                     </small>
                                                 </div>
                                                 <div class="text-end">
-                                                    <span class="badge <?php echo strtotime($assignment['due_date']) < time() ? 'bg-danger' : 'bg-warning'; ?>">
-                                                        <?php 
-                                                        $due_date = new DateTime($assignment['due_date']);
-                                                        $today = new DateTime();
-                                                        
-                                                        $interval = $today->diff($due_date);
-                                                        if ($interval->invert) {
-                                                            echo 'Overdue';
-                                                        } else {
-                                                            echo $interval->days == 0 ? 'Today' : 'Due in ' . $interval->days . ' day' . ($interval->days > 1 ? 's' : '');
-                                                        }
-                                                        ?>
+                                                    <span class="badge bg-info mb-1">
+                                                        <?php echo $assignment['submission_count']; ?> Submissions
                                                     </span>
                                                     <div class="small text-muted"><?php echo date('M j, Y', strtotime($assignment['due_date'])); ?></div>
                                                 </div>
@@ -486,7 +518,7 @@ $conn->close();
                                     <?php endforeach; ?>
                                 </ul>
                                 <div class="d-grid gap-2 mt-3">
-                                    <a href="assignments.php" class="btn btn-outline-primary">View All Assignments</a>
+                                    <a href="assignments.php" class="btn btn-outline-primary">Manage Assignments</a>
                                 </div>
                             <?php else: ?>
                                 <div class="alert alert-info">
@@ -495,79 +527,43 @@ $conn->close();
                             <?php endif; ?>
                         </div>
                     </div>
-                    
-                    <!-- Calendar Actions -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Calendar Actions</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <a href="create_assignment.php" class="btn btn-primary">
-                                    <i class="fas fa-plus me-2"></i> Create New Assignment
-                                </a>
-                                <a href="assignments.php" class="btn btn-outline-secondary">
-                                    <i class="fas fa-tasks me-2"></i> Manage Assignments
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Legend -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Legend</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="bg-warning text-white p-2 me-2 rounded" style="width: 20px; height: 20px;"></div>
-                                <span>Upcoming Assignment</span>
-                            </div>
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="bg-danger text-white p-2 me-2 rounded" style="width: 20px; height: 20px;"></div>
-                                <span>Overdue Assignment</span>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <div class="bg-success text-white p-2 me-2 rounded" style="width: 20px; height: 20px;"></div>
-                                <span>Completed Assignment</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize tooltips
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl)
-        });
-        
-        // Simple popup for assignment details
-        const assignmentItems = document.querySelectorAll('.assignment-item');
-        assignmentItems.forEach(item => {
-            item.addEventListener('mouseenter', function(e) {
-                const title = this.querySelector('a').getAttribute('title');
-                const assignmentInfo = document.createElement('div');
-                assignmentInfo.className = 'assignment-info';
-                assignmentInfo.innerHTML = `<p><strong>${title}</strong></p>`;
-                
-                document.body.appendChild(assignmentInfo);
-                
-                assignmentInfo.style.top = (e.pageY + 10) + 'px';
-                assignmentInfo.style.left = (e.pageX + 10) + 'px';
-                assignmentInfo.style.display = 'block';
-                
-                this.addEventListener('mouseleave', function() {
-                    assignmentInfo.remove();
+        // Similar to student calendar JS, but with teacher-specific modifications if needed
+        document.addEventListener('DOMContentLoaded', function() {
+            const assignmentItems = document.querySelectorAll('.assignment-item');
+            assignmentItems.forEach(item => {
+                item.addEventListener('mouseenter', function(e) {
+                    const title = this.querySelector('a').getAttribute('title');
+                    const assignmentInfo = document.createElement('div');
+                    assignmentInfo.className = 'assignment-info';
+                    assignmentInfo.innerHTML = `<p><strong>${title}</strong></p>`;
+                    assignmentInfo.style.cssText = `
+                        position: absolute;
+                        background-color: white;
+                        border: 1px solid #ddd;
+                        border-radius: 5px;
+                        padding: 10px;
+                        z-index: 1000;
+                        width: 250px;
+                        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                    `;
+                    document.body.appendChild(assignmentInfo);
+                    assignmentInfo.style.top = (e.pageY + 10) + 'px';
+                    assignmentInfo.style.left = (e.pageX + 10) + 'px';
+                    assignmentInfo.style.display = 'block';
+
+                    this.addEventListener('mouseleave', function() {
+                        assignmentInfo.remove();
+                    });
                 });
             });
         });
-    });
     </script>
 </body>
 </html>

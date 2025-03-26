@@ -244,9 +244,6 @@ if ($success && $assignment_id > 0) {
                             <p>Your assignment <strong><?php echo htmlspecialchars($title); ?></strong> has been created and assigned to students in the selected batch and program.</p>
                             <hr>
                             <p class="mb-0">
-                                <a href="assignment_details.php?id=<?php echo $assignment_id; ?>" class="btn btn-success me-2">
-                                    <i class="fas fa-eye"></i> View Assignment
-                                </a>
                                 <a href="dashboard.php" class="btn btn-primary me-2">
                                     <i class="fas fa-home"></i> Return to Dashboard
                                 </a>

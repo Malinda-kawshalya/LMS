@@ -1,0 +1,1 @@
+[2025-03-26 17:11:46] Unknown column 'a.status' in 'field list'

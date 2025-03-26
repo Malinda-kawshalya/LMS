@@ -456,11 +456,18 @@ if (isset($_GET['view']) && is_numeric($_GET['view'])) {
                                                 </td>
                                                 <td>
                                                     <div class="d-flex">
+                                                        <!-- Download Button -->
+                                                        <a href="../uploads/submissions/<?php echo $submission['file_path']; ?>" class="btn btn-sm btn-outline-primary me-2" download>
+                                                            <i class="fas fa-download"></i> Download
+                                                        </a>
                                                         <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#gradeModal<?php echo $submission['id']; ?>">
                                                             <i class="fas fa-edit"></i> Grade
                                                         </button>
                                                     </div>
                                                 </td>
+                                                
+                                                <!-- Rest of the code remains the same as in the original snippet -->
+                                                <!-- Grade Modal code follows... -->
                                             </tr>
                                             
                                             <!-- Grade Modal -->
