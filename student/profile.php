@@ -280,8 +280,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
         }
 
         .gpa-circle {
-            width: 120px;
-            height: 120px;
+            width: 160px;
+            height: 160px;
             border-radius: 50%;
             background-color: var(--primary-color);
             color: white;
@@ -553,38 +553,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </div>
             </div>
         </div>
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Grade Distribution</h5>
-                </div>
-                <div class="card-body">
-                    <?php 
-                        $grade_letters = ['A', 'B', 'C', 'D', 'F'];
+
+            <div class="card-body">
+                <?php 
+                $grade_letters = ['A', 'B', 'C', 'D', 'F'];
                         $colors = ['A' => 'success', 'B' => 'primary', 'C' => 'info', 'D' => 'warning', 'F' => 'danger'];
                     ?>
-                    <?php foreach ($grade_letters as $letter): ?>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="badge bg-<?php echo $colors[$letter]; ?> grade-badge"><?php echo $letter; ?></span>
-                            <div class="flex-grow-1 mx-3">
-                                <div class="progress" style="height: 10px;">
-                                    <?php 
-                                        $count = $grade_distribution[$letter] ?? 0;
-                                        $total = array_sum($grade_distribution);
-                                        $percentage = $total > 0 ? ($count / $total) * 100 : 0;
-                                    ?>
-                                    <div class="progress-bar bg-<?php echo $colors[$letter]; ?>" 
-                                         style="width: <?php echo $percentage; ?>%" 
-                                         aria-valuenow="<?php echo $percentage; ?>">
-                                    </div>
-                                </div>
-                            </div>
-                            <span class="badge bg-secondary"><?php echo $count; ?> (<?php echo number_format($percentage, 1); ?>%)</span>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
+                
+            
+      
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
