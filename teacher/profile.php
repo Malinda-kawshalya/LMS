@@ -272,14 +272,24 @@ $conn->close();
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" href="profile.php">
+                    <a class="nav-link" href="profile.php">
                         <i class="fas fa-user"></i> Profile
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="assignments.php">
+                    <a class="nav-link active" href="assignments.php">
                         <i class="fas fa-tasks"></i> Assignments
                     </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="calendar.php">
+                        <i class="fas fa-calendar-alt"></i> Calendar
+                    </a>
+                <li class="nav-item">
+                    <a class="nav-link" href="chatpage.php">
+                        <i class="fas fa-comments"></i> Chat
+                    </a>
+                </li>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="../logout.php">

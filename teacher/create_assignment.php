@@ -211,8 +211,8 @@ if ($success && $assignment_id > 0) {
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="messages.php">
-                        <i class="fas fa-envelope"></i> Messages
+                    <a class="nav-link" href="chatpage.php">
+                        <i class="fas fa-comments"></i> Chat
                     </a>
                 </li>
             </ul>

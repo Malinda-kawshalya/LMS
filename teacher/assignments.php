@@ -267,6 +267,11 @@ if (isset($_GET['view']) && is_numeric($_GET['view'])) {
                     <a class="nav-link" href="calendar.php">
                         <i class="fas fa-calendar-alt"></i> Calendar
                     </a>
+                <li class="nav-item">
+                    <a class="nav-link" href="chatpage.php">
+                        <i class="fas fa-comments"></i> Chat
+                    </a>
+                </li>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="../logout.php">
