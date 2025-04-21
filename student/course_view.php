@@ -334,6 +334,20 @@ if (!$course) {
 </head>
 <body>
     <!-- Top Navbar -->
+    <nav class="top-navbar d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <button id="sidebar-toggle" class="toggler-btn me-2">
+                <i class="fas fa-bars"></i>
+            </button>
+            <a href="dashboard.php" class="navbar-brand">LMS Portal</a>
+        </div>
+        <div>
+            <span class="me-3"><?php echo htmlspecialchars($_SESSION['name'] ?? 'Student'); ?></span>
+            <a href="../logout.php" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </nav>
 
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
